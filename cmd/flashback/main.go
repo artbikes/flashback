@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"crypto/tls"
+	"net"
 
 	"github.com/ParsePlatform/flashback"
 	"gopkg.in/mgo.v2"
@@ -300,8 +302,14 @@ func main() {
 		workerStates := make([]nodeWorkerState, len(nodes))
 
 		for i, n := range nodes {
+			tlsConfig := &tls.Config{}
+			tlsConfig.InsecureSkipVerify = true
 			dialInfo, err := mgo.ParseURL(n.url)
 			panicOnError(err)
+			dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
+				conn, err := tls.Dial("tcp", addr.String(), tlsConfig)
+				return conn, err
+			}
 			session, err := mgo.DialWithInfo(dialInfo)
 			panicOnError(err)
 			session.SetSocketTimeout(time.Duration(socketTimeout))
